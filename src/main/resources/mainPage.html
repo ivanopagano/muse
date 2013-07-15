@@ -43,6 +43,8 @@
           showMessage("clicked connect", "info");
           wsconnect();
           $("#message-area").slideDown();
+          $('#user-text').focus();
+          
           var connBtn = $(this);
           connBtn.off();
 
@@ -89,6 +91,8 @@
         } else {
           showMessage("Great, your browser supports Web Socket!", "success");
         }
+
+        $("#username").focus();
       });
 
       var socket;
