@@ -20,15 +20,16 @@
         </div>
         <div class="input-append">
           <input class="input-large" id="username" type="text" placeholder="Insert a name here"/>
-          <button id="connBtn" class="btn btn-primary" type="button">connect <i class="icon-off icon-white"></i></button>
+          <button id="conn-btn" class="btn btn-primary" type="button">connect <i class="icon-off icon-white"></i></button>
         </div>
         <hr/>
         <div id="message-area">
           <textarea class="span10" id="response-box" rows="8" disabled></textarea>
-          <div class="input-append">
-            <input class="span9" id="usertext" type="text"/>
-            <button id="sendMsg" class="btn" type="button">send <i class="icon-envelope"></i></button>
-          </div>
+              <div class="input-prepend input-append">
+                <span id="player-name" class="add-on">PlayerName</span>
+                <input class="span8" id="user-text" type="text"/>
+                <button id="send-msg" class="btn" type="button">send <i class="icon-envelope"></i></button>
+              </div>
         </div>
         <div id="alert-box" class="alert"></div>
       </div>
@@ -38,7 +39,7 @@
 
       $(function() {
 
-        $("#connBtn").click(function(event) {
+        $("#conn-btn").click(function(event) {
           showMessage("clicked connect", "info");
           wsconnect();
           $("#message-area").slideDown();
@@ -59,14 +60,14 @@
           connBtn.html("disconnect <i class='icon-off icon-white'></i>");
         });
 
-        $("#sendMsg").click(function(event) {
+        $("#send-msg").click(function(event) {
           showMessage("clicked send", "info");
-          wssend($('#usertext').val());
+          wssend($('#user-text').val());
         });
 
-        $("#usertext").keypress(function(event) {
+        $("#user-text").keypress(function(event) {
           if (event.which == 13) {
-            wssend($('#usertext').val());
+            wssend($('#user-text').val());
           };
         });
       });
@@ -121,6 +122,9 @@
         socket.onclose = function(event) { 
           showMessage("connection closed");
         };
+
+        $("#player-name").text(name);
+
       }
 
       function wssend(msg) {
