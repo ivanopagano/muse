@@ -26,7 +26,6 @@ class PlayerActor extends Actor {
 			val msg = frame.readText
 			channelsRegistry.get(user) foreach { chan =>
 				chan.write(new TextWebSocketFrame(s"[on the registered channel] I received $msg"))
-				println(s"$user's channel found")
 			}
 			frame.writeText(s"[on the frame channel] I received $msg")
 			context.actorFor("/user/broadcaster") ! WebSocketBroadcastText(s"[on the broadcast channel] I received $msg")
