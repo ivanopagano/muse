@@ -13,7 +13,12 @@ Technologies used
  - [Socko Web Server][socko]
  - [Twitter Bootstrap][bootstrap]
 
+## Terms and conditions
+
+This software is subject to the [MIT License][license]
 
 [socko]: http://sockoweb.org/
 [ws]: http://dev.w3.org/html5/websockets/
 [bootstrap]: http://twitter.github.io/bootstrap/
+[license]: http://opensource.org/licenses/mit-license.php
+
