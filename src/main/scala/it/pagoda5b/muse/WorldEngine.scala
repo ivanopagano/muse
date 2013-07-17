@@ -3,11 +3,12 @@ package it.pagoda5b.muse
 import akka.actor._
 import scala.util.Try
 import scala.util.Try._
+import scala.util.Properties
 
 class WorldEngine extends Actor {
 	import Player._
 
-	private val STORAGE_DIR = "/tmp/muse-neo4j-store"
+	private val STORAGE_DIR = Properties.tmpDir + "muse-neo4j-store"
 
 	private[this] val world = new WorldGraph(STORAGE_DIR)
 
