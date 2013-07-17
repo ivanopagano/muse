@@ -10,7 +10,13 @@ object Player {
 
 	case class Connect(username: String, wsChannel: Channel)
 	case class Message(username: String, wsFrame: WebSocketFrameEvent)
-	
+
+	abstract sealed class GameCommand(user: String)
+	case class Begin(user: String) extends GameCommand(user)
+	case class DescribeMe(user: String, description: String) extends GameCommand(user)
+	case class LookAround(user: String) extends GameCommand(user)
+	case class GoToExit(user: String, exit: String) extends GameCommand(user)
+
 }
 
 class PlayerActor extends Actor {
