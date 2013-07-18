@@ -8,14 +8,22 @@ import org.mashupbots.socko.handlers.WebSocketBroadcastText
 
 object Player {
 
-	case class Connect(username: String, wsChannel: Channel)
-	case class Message(username: String, wsFrame: WebSocketFrameEvent)
+	type UserName = String
 
-	abstract sealed class GameCommand(user: String)
-	case class Begin(user: String) extends GameCommand(user)
-	case class DescribeMe(user: String, description: String) extends GameCommand(user)
-	case class LookAround(user: String) extends GameCommand(user)
-	case class GoToExit(user: String, exit: String) extends GameCommand(user)
+	//socket messages
+	case class Connect(username: UserName, wsChannel: Channel)
+	case class Message(username: UserName, wsFrame: WebSocketFrameEvent)
+
+	//engine messages
+	case class PlayerUpdates(updates: List[(UserName, String)])
+
+	//player commands
+	abstract sealed class GameCommand(user: UserName)
+	case class AddPlayer(user: UserName) extends GameCommand(user)
+	case class DescribeMe(user: UserName, description: String) extends GameCommand(user)
+	case class LookAround(user: UserName) extends GameCommand(user)
+	case class GoToExit(user: UserName, exit: String) extends GameCommand(user)
+	case class DoSomething(user: UserName, action: String) extends GameCommand(user)
 
 }
 
@@ -23,7 +31,7 @@ class PlayerActor extends Actor {
 	import Player._
 
 
-	var channelsRegistry = Map[String, Channel]()
+	var channelsRegistry = Map[UserName, Channel]()
 
 	def receive = {
 		case Connect(user, chan) => 
