@@ -114,13 +114,6 @@ private[muse] object WorldGraph {
 			phrases <- updates(p)
 		} yield phrases
 
-		feedbacks match {
-			case Success(l) =>
-				println(l.mkString("\n"))
-			case Failure(e) =>
-				println(e) 
-		}
-		
 		feedbacks.getOrElse(List())
 	}
 
@@ -157,7 +150,9 @@ private[muse] object WorldGraph {
 	private def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
 		val tx = g.beginTx()
 		val result = Try {
-			op(g)
+			val r = op(g)
+			tx.success()
+			r
 		}
 		tx.finish()
 		result
@@ -173,18 +168,18 @@ private[muse] object WorldGraph {
 		import scala.collection.JavaConversions._
 		
 		private def room(player: UserName): String = 
-			s"""start p=node:Player(name="$player") 
+			s"""start p=node:Players(name="$player") 
 				| match (p)-[:IS_IN]->(r)
 				| return r""".stripMargin
 
 		private def sameRoom(player: UserName): String = 
-			s"""start p=node:Player(name="$player") 
+			s"""start p=node:Players(name="$player") 
 				| match (p)-[:IS_IN]->(r)<-[:IS_IN]-(other)
 				| where other <> p
 				| return other""".stripMargin
 
 		private def nextRoom(player: UserName): String = 
-			s"""start p=node:Player(name="$player") 
+			s"""start p=node:Players(name="$player") 
 				| match (p)-[:IS_IN]->(r)<-[:LEADS_TO]-(r2)<-[:IS_IN]-(other)
 				| return other""".stripMargin
 

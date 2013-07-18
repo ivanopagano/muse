@@ -10,7 +10,7 @@ class PhraserActor extends Actor {
 			sender ! s"Ti accorgi ora che con te c'e' $desc"
 		case DescribeRoom((roomName, roomDesc), exits, people) => 
 			sender ! s"""Sei in $roomName. $roomDesc.
-				 					|${describePeople(people)} ${describeExits(exits)}""".stripMargin
+				 					|${describePeople(people)}${describeExits(exits)}""".stripMargin
 		case PlayerAction(player, action) => 
 			sender ! s"$player $action"
 		case PlayerComes(player, (exitId, exitDesc)) => 
