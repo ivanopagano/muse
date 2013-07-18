@@ -14,8 +14,9 @@ import Phraser._
 
 class WorldEngine extends Actor {
 	import Player._
+	import akka.routing.FromConfig
 
-	private val phraser = context.actorOf(Props[PhraserActor], "phraser")
+	private val phraser = context.actorOf(Props[PhraserActor].withRouter(FromConfig()), "phraser")
 
 
 	def receive = {
