@@ -4,7 +4,6 @@ import akka.actor._
 import scala.util.Try
 import scala.util.Try._
 import scala.util.Properties
-import Phraser.Phrase
 import Player.UserName
 import Phraser._
 
@@ -41,7 +40,7 @@ class WorldEngine extends Actor {
 
 		def stop(): Unit = graph.shutdown()
 
-		def addPlayer(player: UserName): PhraseUpdates = {
+		def addPlayer(player: UserName): UpdateEvents = {
 
 			//Tries to update the world graph
 			def added: Try[Node] = transacted(graph) { g =>
@@ -58,7 +57,7 @@ class WorldEngine extends Actor {
 			}
 
 			//Tries prepare feedback messages for all the players
-			def updates(playerAdded: Node): Try[PhraseUpdates] = transacted(graph) { g =>
+			def updates(playerAdded: Node): Try[UpdateEvents] = transacted(graph) { g =>
 				//find the room
 				val room = roomWith(player)
 				//find players in the same room
@@ -87,7 +86,7 @@ class WorldEngine extends Actor {
 
 		val PLAYER_NAME = "name"
 
-		type PhraseUpdates = List[(Phrase, List[UserName])]
+		type UpdateEvents = List[(GameEvent, List[UserName])]
 
 		case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
 		case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
