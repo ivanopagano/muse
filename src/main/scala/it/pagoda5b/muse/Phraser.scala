@@ -6,7 +6,7 @@ class PhraserActor extends Actor {
 	import Phraser._
 	
 	def receive = {
-		case PlayerAdded(desc) => 
+		case NewPlayer(desc) => 
 			sender ! s"Ti accorgi ora che con te c'e' $desc"
 		case DescribeRoom((roomName, roomDesc), exits, people) => 
 			sender ! s"""Sei in $roomName. $roomDesc.
@@ -37,9 +37,9 @@ object Phraser {
 
 	type ExitId = String
 
-	//messages corresponding to sentences needed by the game
+	//events corresponding to sentences needed by the game
 	abstract sealed class GameEvent
-	case class PlayerAdded(desc: String) extends GameEvent
+	case class NewPlayer(desc: String) extends GameEvent
 	case class DescribeRoom(room: (String, String), exits: List[(ExitId, String)], people: List[String]) extends GameEvent
 	case class PlayerAction(player: String, action: String) extends GameEvent
 	case class PlayerComes(player: String, exit: (ExitId, String)) extends GameEvent

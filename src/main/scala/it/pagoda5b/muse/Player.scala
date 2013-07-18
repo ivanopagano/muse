@@ -36,13 +36,21 @@ class PlayerActor extends Actor {
 	def receive = {
 		case Connect(user, chan) => 
 			channelsRegistry += (user -> chan)
+			context.actorFor("/user/engine") ! AddPlayer(user)
 		case Message(user, frame) => 
 			val msg = frame.readText
-			channelsRegistry.get(user) foreach { chan =>
-				chan.write(new TextWebSocketFrame(s"[on the registered channel] I received $msg"))
-			}
-			frame.writeText(s"[on the frame channel] I received $msg")
+			// channelsRegistry.get(user) foreach { chan =>
+			// 	chan.write(new TextWebSocketFrame(s"[on the registered channel] I received $msg"))
+			// }
+			// frame.writeText(s"[on the frame channel] I received $msg")
 			context.actorFor("/user/broadcaster") ! WebSocketBroadcastText(s"[on the broadcast channel] I received $msg")
+		case PlayerUpdates(updates) =>
+			for (
+				(user, text) <- updates.par;
+				chan <- channelsRegistry.get(user)
+			) {
+				chan.write(new TextWebSocketFrame(text))
+			}
 	}
 
 }

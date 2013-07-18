@@ -7,19 +7,17 @@ import org.mashupbots.socko.handlers._
 import org.mashupbots.socko.events._
 import akka.actor._
 import akka.routing.FromConfig
-import com.typesafe.config._
 import Console._
 import java.io.File
 
 object MuseServer extends App {
 
-	val actorsConf = ConfigFactory.load()
-
-	val actorSystem = ActorSystem("muse-system", actorsConf)
+	val actorSystem = ActorSystem("muse-system")
 
 	val broadcaster = actorSystem.actorOf(Props[WebSocketBroadcaster], "broadcaster")
 	
 	val player = actorSystem.actorOf(Props[PlayerActor], "player")
+	val engine = actorSystem.actorOf(Props[WorldEngine], "engine")
 	
 	val routerConfig = StaticContentHandlerConfig()
 	

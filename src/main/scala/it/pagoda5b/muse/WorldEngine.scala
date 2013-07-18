@@ -1,25 +1,45 @@
 package it.pagoda5b.muse
 
 import akka.actor._
-import scala.util.Try
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.util.{Try, Success, Failure}
 import scala.util.Try._
 import scala.util.Properties
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.Future
 import Player.UserName
 import Phraser._
 
 class WorldEngine extends Actor {
 	import Player._
 
-	private val STORAGE_DIR = Properties.tmpDir + "muse-neo4j-store"
+	private val phraser = context.actorOf(Props[PhraserActor], "phraser")
 
-	private[this] val world = new WorldGraph(STORAGE_DIR)
 
 	def receive = {
+		case AddPlayer(player) =>
+			val originalSender = sender
+			val updates = WorldGraph.addPlayer(player)
+			updates foreach {
+				case (event, users) =>
+					implicit val timeout = Timeout(5 seconds)
+					//a future response
+					val phrase = (phraser ? event).mapTo[String]
+					phrase onComplete {
+						case Success(text) =>
+							originalSender ! PlayerUpdates(users zip Stream.continually(text))
+						case Failure(error) =>
+							//do something?
+					}
+			}
 		case _ => 
+			//default case
 	}
 
 	override def postStop() {
-		world.stop()
+			WorldGraph.stop()
 	}
 
 }
@@ -30,7 +50,7 @@ object WorldEngine {
 
 }
 
-private[muse] class WorldGraph(storeDir: String) {
+private[muse] object WorldGraph {
 	import org.neo4j.graphdb._
 	import org.neo4j.graphdb.index._
 	import org.neo4j.graphdb.factory._
@@ -38,13 +58,21 @@ private[muse] class WorldGraph(storeDir: String) {
 	import WorldGraph._
 	import WorldEngine._
 	import GraphSearch._
+	import com.typesafe.config._
 
-	require(storeDir != null)
-	private val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(storeDir)
+	val conf = ConfigFactory.load().getConfig("world-engine")
+
+
+	private val STORAGE_DIR = Properties.tmpDir + conf.getString("graph-dir")
+	private val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(STORAGE_DIR)
 	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
-	//private val relsIdx: RelationshipIndex = graph.index.forRelationships("rels")
+
 	private implicit val queryEngine = new ExecutionEngine(graph)
+
 	private val startRoom: Long = populate(graph).map(_.getId).getOrElse(0L)
+
+	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
+	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
 
 	def stop(): Unit = graph.shutdown()
 
@@ -52,6 +80,7 @@ private[muse] class WorldGraph(storeDir: String) {
 
 		//Tries to update the world graph
 		def added: Try[Node] = transacted(graph) { g =>
+
 			val pl = g.createNode
 			pl.setProperty("name", player)
 			pl.setProperty("description", "uno sconosciuto")
@@ -59,6 +88,7 @@ private[muse] class WorldGraph(storeDir: String) {
 			playersIdx.add(pl, "name", player)
 
 			val start = g.getNodeById(startRoom)
+
 			pl.createRelationshipTo(start, IS_IN)
 
 			pl
@@ -73,7 +103,7 @@ private[muse] class WorldGraph(storeDir: String) {
 			//fetch data for room description
 			val playerPhrase = DescribeRoom(nodeDetails(room), roomExits(room).map(exitDetails), bystanders.map(_._2))
 			//fetch data for players in the same room
-			val bystandersPhrase = PlayerAdded(nodeDetails(room)._2)
+			val bystandersPhrase = NewPlayer(nodeDetails(playerAdded)._2)
 			//pack messages for phraser
 			List((playerPhrase, List(player)), (bystandersPhrase, bystanders.map(_._1)))
 		}
@@ -84,16 +114,15 @@ private[muse] class WorldGraph(storeDir: String) {
 			phrases <- updates(p)
 		} yield phrases
 
+		feedbacks match {
+			case Success(l) =>
+				println(l.mkString("\n"))
+			case Failure(e) =>
+				println(e) 
+		}
+		
 		feedbacks.getOrElse(List())
 	}
-
-}
-
-private[muse] object WorldGraph {
-	import org.neo4j.graphdb._
-
-	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
-	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
 
 	def populate(g: GraphDatabaseService): Try[Node] = {
 		def createRoom(name: String, desc: String): Node = {
@@ -120,7 +149,7 @@ private[muse] object WorldGraph {
 
 			joinRooms(hall, terrace, "scalinata", "una scalinata in ebano lucido")
 			joinRooms(terrace, hall, "accesso", "una porta per la scalinata al piano inferiore")
-
+		
 			courtyard
 		}
 	}
@@ -170,6 +199,9 @@ private[muse] object WorldGraph {
 
 		def roomExits(room: Node): List[Relationship] =
 			room.getRelationships(Direction.OUTGOING, WorldGraph.LEADS_TO).toList
+
+		def allNodes(implicit engine: ExecutionEngine) =
+			engine.execute("start n=node(*) return n").columnAs("n").toList
 
 	}
 }
