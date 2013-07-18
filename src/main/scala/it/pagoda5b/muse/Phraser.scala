@@ -38,7 +38,7 @@ object Phraser {
 	type ExitId = String
 
 	//events corresponding to sentences needed by the game
-	abstract sealed class GameEvent
+	sealed trait GameEvent
 	case class NewPlayer(desc: String) extends GameEvent
 	case class DescribeRoom(room: (String, String), exits: List[(ExitId, String)], people: List[String]) extends GameEvent
 	case class PlayerAction(player: String, action: String) extends GameEvent
