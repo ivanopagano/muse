@@ -22,123 +22,123 @@ class WorldEngine extends Actor {
 		world.stop()
 	}
 
+}
 
-	private class WorldGraph(storeDir: String) {
-		import org.neo4j.graphdb._
-		import org.neo4j.graphdb.index._
-		import org.neo4j.graphdb.factory._
- 		import org.neo4j.cypher.javacompat.ExecutionEngine
-		import WorldGraph._
-		import GraphSearch._
+object WorldEngine {
 
-		require(storeDir != null)
-		private val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(storeDir)
-		private val playersIdx: Index[Node] = graph.index.forNodes("Players")
-		//private val relsIdx: RelationshipIndex = graph.index.forRelationships("rels")
-		private implicit val queryEngine = new ExecutionEngine(graph)
-		private val startRoom: Long = populate(graph).map(_.getId).getOrElse(0L)
+	type UpdateEvents = List[(GameEvent, List[UserName])]
 
-		def stop(): Unit = graph.shutdown()
+}
 
-		def addPlayer(player: UserName): UpdateEvents = {
+private[muse] class WorldGraph(storeDir: String) {
+	import org.neo4j.graphdb._
+	import org.neo4j.graphdb.index._
+	import org.neo4j.graphdb.factory._
+	import org.neo4j.cypher.javacompat.ExecutionEngine
+	import WorldGraph._
+	import WorldEngine._
+	import GraphSearch._
 
-			//Tries to update the world graph
-			def added: Try[Node] = transacted(graph) { g =>
-				val pl = g.createNode
-				pl.setProperty("name", player)
-				pl.setProperty("description", "uno sconosciuto")
+	require(storeDir != null)
+	private val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(storeDir)
+	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
+	//private val relsIdx: RelationshipIndex = graph.index.forRelationships("rels")
+	private implicit val queryEngine = new ExecutionEngine(graph)
+	private val startRoom: Long = populate(graph).map(_.getId).getOrElse(0L)
 
-				playersIdx.add(pl, PLAYER_NAME, player)
+	def stop(): Unit = graph.shutdown()
 
-				val start = g.getNodeById(startRoom)
-				pl.createRelationshipTo(start, IS_IN)
+	def addPlayer(player: UserName): UpdateEvents = {
 
-				pl
-			}
+		//Tries to update the world graph
+		def added: Try[Node] = transacted(graph) { g =>
+			val pl = g.createNode
+			pl.setProperty("name", player)
+			pl.setProperty("description", "uno sconosciuto")
 
-			//Tries prepare feedback messages for all the players
-			def updates(playerAdded: Node): Try[UpdateEvents] = transacted(graph) { g =>
-				//find the room
-				val room = roomWith(player)
-				//find players in the same room
-				val bystanders = sameRoomWith(player).map(nodeDetails);
-				//fetch data for room description
-				val playerPhrase = DescribeRoom(nodeDetails(room), roomExits(room).map(exitDetails), bystanders.map(_._2))
-				//fetch data for players in the same room
-				val bystandersPhrase = PlayerAdded(nodeDetails(room)._2)
-				//pack messages for phraser
-				List((playerPhrase, List(player)), (bystandersPhrase, bystanders.map(_._1)))
-			}
+			playersIdx.add(pl, "name", player)
 
-			//combine the tries
-			val feedbacks = for {
-				p <- added
-				phrases <- updates(p)
-			} yield phrases
+			val start = g.getNodeById(startRoom)
+			pl.createRelationshipTo(start, IS_IN)
 
-			feedbacks.getOrElse(List())
+			pl
 		}
 
+		//Tries prepare feedback messages for all the players
+		def updates(playerAdded: Node): Try[UpdateEvents] = transacted(graph) { g =>
+			//find the room
+			val room = roomWith(player)
+			//find players in the same room
+			val bystanders = sameRoomWith(player).map(nodeDetails);
+			//fetch data for room description
+			val playerPhrase = DescribeRoom(nodeDetails(room), roomExits(room).map(exitDetails), bystanders.map(_._2))
+			//fetch data for players in the same room
+			val bystandersPhrase = PlayerAdded(nodeDetails(room)._2)
+			//pack messages for phraser
+			List((playerPhrase, List(player)), (bystandersPhrase, bystanders.map(_._1)))
+		}
+
+		//combine the tries
+		val feedbacks = for {
+			p <- added
+			phrases <- updates(p)
+		} yield phrases
+
+		feedbacks.getOrElse(List())
 	}
 
-	private object WorldGraph {
-		import org.neo4j.graphdb._
+}
 
-		val PLAYER_NAME = "name"
+private[muse] object WorldGraph {
+	import org.neo4j.graphdb._
 
-		type UpdateEvents = List[(GameEvent, List[UserName])]
+	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
+	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
 
-		case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
-		case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
-
-		def populate(g: GraphDatabaseService): Try[Node] = {
-			def createRoom(name: String, desc: String): Node = {
-				val room = g.createNode
-				room.setProperty("name", name)
-				room.setProperty("description", desc)
-				room
-			}
-
-			def joinRooms(r1: Node, r2: Node, id: String, desc: String): Relationship = {
-				val exit = r1.createRelationshipTo(r2, LEADS_TO)
-				exit.setProperty("id", id)
-				exit.setProperty("description", desc)
-				exit
-			}
-
-			transacted(g) { _ =>
-				val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato con un paio di alberi e molti cespugli")
-				val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
-				val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
-
-				joinRooms(courtyard, hall, "portone", "una massiccia porta che conduce all'edificio")
-				joinRooms(hall, courtyard, "uscita", "la porta verso l'esterno")
-
-				joinRooms(hall, terrace, "scalinata", "una scalinata in ebano lucido")
-				joinRooms(terrace, hall, "accesso", "una porta per la scalinata al piano inferiore")
-
-				courtyard
-			}
+	def populate(g: GraphDatabaseService): Try[Node] = {
+		def createRoom(name: String, desc: String): Node = {
+			val room = g.createNode
+			room.setProperty("name", name)
+			room.setProperty("description", desc)
+			room
 		}
 
-		private def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
-			val tx = g.beginTx()
-			val result = Try {
-				op(g)
-			}
-			tx.finish()
-			result
+		def joinRooms(r1: Node, r2: Node, id: String, desc: String): Relationship = {
+			val exit = r1.createRelationshipTo(r2, LEADS_TO)
+			exit.setProperty("id", id)
+			exit.setProperty("description", desc)
+			exit
 		}
 
-		def nodeDetails(n: Node): (String, String) = (n.getProperty("name").toString, n.getProperty("description").toString)
+		transacted(g) { _ =>
+			val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato con un paio di alberi e molti cespugli")
+			val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
+			val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
 
-		def exitDetails(e: Relationship): (ExitId, String) = (e.getProperty("id").toString, e.getProperty("description").toString)
+			joinRooms(courtyard, hall, "portone", "una massiccia porta che conduce all'edificio")
+			joinRooms(hall, courtyard, "uscita", "la porta verso l'esterno")
 
+			joinRooms(hall, terrace, "scalinata", "una scalinata in ebano lucido")
+			joinRooms(terrace, hall, "accesso", "una porta per la scalinata al piano inferiore")
 
-
+			courtyard
+		}
 	}
 
-	object GraphSearch {
+	private def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
+		val tx = g.beginTx()
+		val result = Try {
+			op(g)
+		}
+		tx.finish()
+		result
+	}
+
+	private def nodeDetails(n: Node): (String, String) = (n.getProperty("name").toString, n.getProperty("description").toString)
+
+	private def exitDetails(e: Relationship): (ExitId, String) = (e.getProperty("id").toString, e.getProperty("description").toString)
+
+	private object GraphSearch {
 		import org.neo4j.graphdb._
 		import org.neo4j.cypher.javacompat.ExecutionEngine
 		import scala.collection.JavaConversions._
@@ -173,3 +173,4 @@ class WorldEngine extends Actor {
 
 	}
 }
+
