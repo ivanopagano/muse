@@ -32,7 +32,7 @@ class WorldEngine extends Actor {
 			//default case
 	}
 
-	def deliverResponse(event: (GameEvent, List[UserName])): Unit = event match {
+	def deliverResponse(eventTargets: (GameEvent, List[UserName])): Unit = eventTargets match {
 		case (event, users) =>
 			implicit val timeout = Timeout(5 seconds)
 			//a future response
