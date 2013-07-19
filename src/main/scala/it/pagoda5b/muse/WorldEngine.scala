@@ -28,11 +28,15 @@ class WorldEngine extends Actor {
 			updates.par foreach deliverResponse
 		case RemovePlayer(player) =>
 			world.removePlayer(player)
+		case DescribeMe(player, desc) =>
+			val update = world.changeDescription(player, desc)
+			deliverResponse(update)
 		case _ => 
 			//default case
 	}
 
 	def deliverResponse(eventTargets: (GameEvent, List[UserName])): Unit = eventTargets match {
+		case (event, Nil) =>
 		case (event, users) =>
 			implicit val timeout = Timeout(5 seconds)
 			//a future response
@@ -122,6 +126,16 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	}
 
+	def changeDescription(player: UserName, description: String): (GameEvent, List[UserName]) = {
+		val update: Try[(GameEvent, List[UserName])] = transacted(graph) { g =>
+			val pl = self(player)
+			pl.setProperty("description", description)
+			
+			(PlayerDescribed, List(player))
+		}
+
+		update.getOrElse((PlayerDescribed, List()))
+	}
 
 }
 

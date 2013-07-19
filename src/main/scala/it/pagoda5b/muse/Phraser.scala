@@ -18,7 +18,9 @@ class PhraserActor extends Actor {
 		case PlayerLeaves(player, (exitId, exitDesc)) =>
 			sender ! (s"attraversi $exitDesc", s"$player esce da $exitDesc")
 		case NoiseFrom((exitId, exitDesc)) =>
-			sender ! (s"puoi sentire dei rumori provenire oltre $exitDesc")
+			sender ! s"puoi sentire dei rumori provenire oltre $exitDesc"
+		case PlayerDescribed =>
+			sender ! "ora gli altri ti guarderanno con occhi diversi?"
 	}
 
 	def describePeople(people: List[String]) = 
@@ -45,5 +47,5 @@ object Phraser {
 	case class PlayerComes(player: String, exit: (ExitId, String)) extends GameEvent
 	case class PlayerLeaves(player: String, exit: (ExitId, String)) extends GameEvent
 	case class NoiseFrom(exit: (ExitId, String)) extends GameEvent
-
+	case object PlayerDescribed extends GameEvent
 }
