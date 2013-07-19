@@ -34,6 +34,9 @@ class WorldEngine extends Actor {
 		case LookAround(player) =>
 			val desc = world.getRoomDescription(player)
 			deliverResponse((desc, List(player)))
+		case DoSomething(player, action) =>
+			val updates = world.doSomething(player, action)
+			updates.par foreach deliverResponse
 		case _ => 
 			//default case
 	}
@@ -154,6 +157,21 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	}
 
+	def doSomething(player: UserName, action: String): UpdateEvents = {
+		val actionSeen: Try[UpdateEvents] = transacted(graph) { g =>
+			//get the acting player
+			val actor = self(player)
+			//find players in the same room
+			val bystanders = sameRoomWith(player).map(nodeDetails);
+			//describe action for actor
+			val actorPhrase = (PlayerAction(player, action), List(player))
+			val bystandersPhrase = (PlayerAction(nodeDetails(actor)._2, action),  bystanders.map(_._1))
+			List(actorPhrase, bystandersPhrase)
+		}
+
+		actionSeen.getOrElse(List())
+
+	}
 
 }
 
