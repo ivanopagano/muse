@@ -172,7 +172,7 @@ private[muse] object WorldGraph {
 		}
 
 		transacted(g) { _ =>
-			val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato con un paio di alberi e molti cespugli")
+			val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato da un paio di alberi e molti cespugli")
 			val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
 			val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
 
