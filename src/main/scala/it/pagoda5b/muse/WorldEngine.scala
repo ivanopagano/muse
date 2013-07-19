@@ -34,6 +34,8 @@ class WorldEngine extends Actor {
 		case LookAround(player) =>
 			val desc = world.getRoomDescription(player)
 			deliverResponse((desc, List(player)))
+		case GoToExit(player, exit) =>
+			//TODO
 		case DoSomething(player, action) =>
 			val updates = world.doSomething(player, action)
 			updates.par foreach deliverResponse
@@ -43,6 +45,7 @@ class WorldEngine extends Actor {
 
 	def deliverResponse(eventTargets: (GameEvent, List[UserName])): Unit = eventTargets match {
 		case (NoOp, _) =>
+			//nothing to tell
 		case (event, users) =>
 			implicit val timeout = Timeout(5 seconds)
 			//a future response
@@ -68,6 +71,7 @@ object WorldEngine {
 }
 
 private[muse] class WorldGraph(graph: GraphDatabaseService) {
+	import org.neo4j.graphdb._
 	import org.neo4j.graphdb.index._
 	import org.neo4j.cypher.javacompat.ExecutionEngine
 	import WorldGraph._
@@ -110,7 +114,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 			//fetch data for players in the same room
 			val bystandersPhrase = NewPlayer(nodeDetails(playerAdded)._2)
 			//pack messages for phraser
-			List((playerPhrase, List(player)), (bystandersPhrase, bystanders.map(_._1)))
+			List(zip(playerPhrase, player), (bystandersPhrase, bystanders.map(_._1)))
 		}
 
 		//combine the tries
@@ -158,20 +162,37 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 	}
 
 	def doSomething(player: UserName, action: String): UpdateEvents = {
+		def collapseNeighbours(l: List[(Relationship, Node)]): List[UserName] =
+			l map {
+				case (r, n) => nodeDetails(n)._1
+			}
+
 		val actionSeen: Try[UpdateEvents] = transacted(graph) { g =>
 			//get the acting player
 			val actor = self(player)
 			//find players in the same room
 			val bystanders = sameRoomWith(player).map(nodeDetails);
 			//describe action for actor
-			val actorPhrase = (PlayerAction(player, action), List(player))
+			val actorPhrase = zip(PlayerAction(player, action), player)
+			//action for people in the same room
 			val bystandersPhrase = (PlayerAction(nodeDetails(actor)._2, action),  bystanders.map(_._1))
-			List(actorPhrase, bystandersPhrase)
+			//noises heard by people in the room next door
+			val nextRoomGroups: Map[(String, String), List[(Relationship, Node)]] = nextDoorsTo(player) groupBy {
+				case (exitRel, people) => exitDetails(exitRel)
+			}
+			val nextRoomPhrase = nextRoomGroups.foldLeft(List[(GameEvent, List[UserName])]()) {
+				case (result, (exit, nr)) => (NoiseFrom(exit), collapseNeighbours(nr)) :: result
+			}
+
+			//pack up and return the events
+			actorPhrase :: bystandersPhrase :: nextRoomPhrase
 		}
 
 		actionSeen.getOrElse(List())
 
 	}
+
+	def zip(event: GameEvent, player: UserName) = (event, List(player))
 
 }
 
@@ -257,10 +278,19 @@ private[muse] object WorldGraph {
 				| where other <> p
 				| return other""".stripMargin
 
-		private def nextRoom(player: UserName): String = 
+		private def nextRooms(player: UserName): String = 
 			s"""start p=node:Players(name="$player") 
 				| match (p)-[:IS_IN]->(r)<-[:LEADS_TO]-(r2)<-[:IS_IN]-(other)
 				| return other""".stripMargin
+
+		private def nextDoors(player: UserName): String =
+			s"""start p=node:Players(name="$player") 
+				| match (p)-[:IS_IN]->(r)<-[exit:LEADS_TO]-(r2)<-[:IS_IN]-(other)
+				| return exit, other""".stripMargin
+
+		//this is mostly for testing purposes
+		def allNodes(implicit engine: ExecutionEngine) =
+			engine.execute("start n=node(*) return n").columnAs("n").toList
 
 		def self(player: UserName)(implicit engine: ExecutionEngine): Node =
 			engine.execute(selfNode(player)).columnAs("p").next.asInstanceOf[Node]
@@ -271,14 +301,20 @@ private[muse] object WorldGraph {
 		def sameRoomWith(player: UserName)(implicit engine: ExecutionEngine): List[Node] = 
 			engine.execute(sameRoom(player)).columnAs("other").toList
 
-		def nextRoomTo(player: UserName)(implicit engine: ExecutionEngine): List[Node] =
-			engine.execute(nextRoom(player)).columnAs("other").toList
+		def nextRoomsTo(player: UserName)(implicit engine: ExecutionEngine): List[Node] =
+			engine.execute(nextRooms(player)).columnAs("other").toList
+
+		def nextDoorsTo(player: UserName)(implicit engine: ExecutionEngine): List[(Relationship, Node)] = {
+			val rows = engine.execute(nextDoors(player))
+			(rows map (r => (r("exit").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
+		}
 
 		def roomExits(room: Node): List[Relationship] =
 			room.getRelationships(Direction.OUTGOING, WorldGraph.LEADS_TO).toList
 
-		def allNodes(implicit engine: ExecutionEngine) =
-			engine.execute("start n=node(*) return n").columnAs("n").toList
+		def exitDestination(exit: Relationship): Node =
+			exit.getEndNode
+
 
 	}
 }

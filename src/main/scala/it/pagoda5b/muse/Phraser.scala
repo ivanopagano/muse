@@ -19,6 +19,8 @@ class PhraserActor extends Actor {
 			sender ! (s"attraversi $exitDesc", s"$player esce da $exitDesc")
 		case NoiseFrom((exitId, exitDesc)) =>
 			sender ! s"puoi sentire dei rumori provenire oltre $exitDesc"
+		case NoExit(exit) =>
+			sender ! s"non mi sembra che $exit sia una scelta percorribile"
 		case PlayerDescribed =>
 			sender ! "ora gli altri ti guarderanno con occhi diversi?"
 	}
@@ -47,6 +49,7 @@ object Phraser {
 	case class PlayerComes(player: String, exit: (ExitId, String)) extends GameEvent
 	case class PlayerLeaves(player: String, exit: (ExitId, String)) extends GameEvent
 	case class NoiseFrom(exit: (ExitId, String)) extends GameEvent
+	case class NoExit(exit: ExitId) extends GameEvent
 	case object PlayerDescribed extends GameEvent
 	case object NoOp extends GameEvent
 
