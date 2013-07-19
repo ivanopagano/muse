@@ -30,13 +30,16 @@ class WorldEngine extends Actor {
 			world.removePlayer(player)
 		case DescribeMe(player, desc) =>
 			val update = world.changeDescription(player, desc)
-			deliverResponse(update)
+			deliverResponse((update, List(player)))
+		case LookAround(player) =>
+			val desc = world.getRoomDescription(player)
+			deliverResponse((desc, List(player)))
 		case _ => 
 			//default case
 	}
 
 	def deliverResponse(eventTargets: (GameEvent, List[UserName])): Unit = eventTargets match {
-		case (event, Nil) =>
+		case (NoOp, _) =>
 		case (event, users) =>
 			implicit val timeout = Timeout(5 seconds)
 			//a future response
@@ -126,16 +129,31 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	}
 
-	def changeDescription(player: UserName, description: String): (GameEvent, List[UserName]) = {
-		val update: Try[(GameEvent, List[UserName])] = transacted(graph) { g =>
+	def changeDescription(player: UserName, description: String): GameEvent = {
+		val update: Try[GameEvent] = transacted(graph) { g =>
 			val pl = self(player)
 			pl.setProperty("description", description)
 			
-			(PlayerDescribed, List(player))
+			PlayerDescribed
 		}
 
-		update.getOrElse((PlayerDescribed, List()))
+		update.getOrElse(NoOp)
 	}
+
+	def getRoomDescription(player: UserName): GameEvent = {
+		val desc: Try[GameEvent] = transacted(graph) { g =>
+			//find the room
+			val room = roomWith(player)
+			//find players in the same room
+			val bystanders = sameRoomWith(player).map(nodeDetails);
+			//fetch data for room description
+			DescribeRoom(nodeDetails(room), roomExits(room).map(exitDetails), bystanders.map(_._2))
+		}
+
+		desc.getOrElse(NoOp)
+
+	}
+
 
 }
 

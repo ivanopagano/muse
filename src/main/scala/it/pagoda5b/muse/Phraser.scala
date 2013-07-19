@@ -48,4 +48,6 @@ object Phraser {
 	case class PlayerLeaves(player: String, exit: (ExitId, String)) extends GameEvent
 	case class NoiseFrom(exit: (ExitId, String)) extends GameEvent
 	case object PlayerDescribed extends GameEvent
+	case object NoOp extends GameEvent
+
 }
