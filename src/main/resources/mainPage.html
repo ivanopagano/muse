@@ -27,11 +27,20 @@
           <textarea class="span10" id="response-box" rows="8" disabled></textarea>
               <div class="input-prepend input-append">
                 <span id="player-name" class="add-on">PlayerName</span>
-                <input class="span8" id="user-text" type="text"/>
+                <input class="span7" id="user-text" type="text"/>
                 <button id="send-msg" class="btn" type="button">send <i class="icon-envelope"></i></button>
               </div>
+              <i id="help-icon" class="icon-question-sign pull-right" 
+                data-toggle="tooltip" 
+                title="Available commands are:
+                <ul><li><b>GO [exit]</b> to use the exit</li>
+                <li><b>ME [desc]</b> to describe how others see you</li>
+                <li><b>LOOK</b> to see what's around you</li>
+                <li>Whatever else you write is considered an action you  perform</li></ul>" data-html="true" data-placement="left">
+              </i>
         </div>
         <div id="alert-box" class="alert"></div>
+        <footer class="pull-right"><small>icons courtesy of <a href="http://glyphicons.com/">Glyphicons</a></small></footer>
       </div>
     </div>
 
@@ -72,6 +81,7 @@
             wssend($('#user-text').val());
           };
         });
+
       });
 
       $(window).load(function() {
@@ -92,6 +102,7 @@
           showMessage("Great, your browser supports Web Socket!", "success");
         }
 
+        $("#help-icon").tooltip();
         $("#username").focus();
       });
 
