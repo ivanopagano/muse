@@ -123,8 +123,10 @@
         socket.onopen = function(event) { 
           showMessage(name + ", you're connected", "success");
         };
-        socket.onclose = function(event) { 
-          showMessage("connection closed");
+        socket.onclose = function(event) {
+          $.post("http://localhost:8888/disconnect", name)
+            .done(function() {showMessage("connection closed");})
+            .fail(function() {showMessage("connection closed, but failed to clean up", "error");});
         };
 
         $("#player-name").text(name);

@@ -13,6 +13,7 @@ object Player {
 	//socket messages
 	case class Connect(username: UserName, wsChannel: Channel)
 	case class Message(username: UserName, wsFrame: WebSocketFrameEvent)
+	case class Disconnect(username: UserName)
 
 	//engine messages
 	case class PlayerUpdates(updates: List[(UserName, String)])
@@ -20,6 +21,7 @@ object Player {
 	//player commands
 	abstract sealed class GameCommand(user: UserName)
 	case class AddPlayer(user: UserName) extends GameCommand(user)
+	case class RemovePlayer(user: UserName) extends GameCommand(user)
 	case class DescribeMe(user: UserName, description: String) extends GameCommand(user)
 	case class LookAround(user: UserName) extends GameCommand(user)
 	case class GoToExit(user: UserName, exit: String) extends GameCommand(user)
@@ -37,6 +39,9 @@ class PlayerActor extends Actor {
 		case Connect(user, chan) => 
 			channelsRegistry += (user -> chan)
 			context.actorFor("/user/engine") ! AddPlayer(user)
+		case Disconnect(user) => 
+			channelsRegistry -= user
+			context.actorFor("/user/engine") ! RemovePlayer(user)
 		case Message(user, frame) => 
 			val msg = frame.readText
 			// channelsRegistry.get(user) foreach { chan =>

@@ -17,30 +17,33 @@ class WorldEngine extends Actor {
 	import akka.routing.FromConfig
 
 	private val phraser = context.actorOf(Props[PhraserActor].withRouter(FromConfig()), "phraser")
-
+	private val playerActor = context.actorFor("/user/player")
 
 	def receive = {
 		case AddPlayer(player) =>
-			val originalSender = sender
 			val updates = WorldGraph.addPlayer(player)
-			updates foreach {
-				case (event, users) =>
-					implicit val timeout = Timeout(5 seconds)
-					//a future response
-					val phrase = (phraser ? event).mapTo[String]
-					phrase onComplete {
-						case Success(text) =>
-							originalSender ! PlayerUpdates(users zip Stream.continually(text))
-						case Failure(error) =>
-							//do something?
-					}
-			}
+			updates.par foreach deliverResponse
+		case RemovePlayer(player) =>
+			WorldGraph.removePlayer(player)
 		case _ => 
 			//default case
 	}
 
+	def deliverResponse(event: (GameEvent, List[UserName])): Unit = event match {
+		case (event, users) =>
+			implicit val timeout = Timeout(5 seconds)
+			//a future response
+			val phrase = (phraser ? event).mapTo[String]
+			phrase onComplete {
+				case Success(text) =>
+					playerActor ! PlayerUpdates(users zip Stream.continually(text))
+				case Failure(error) =>
+					//do something?
+			}
+	}
+
 	override def postStop() {
-			WorldGraph.stop()
+		WorldGraph.stop()
 	}
 
 }
@@ -118,6 +121,16 @@ private[muse] object WorldGraph {
 		feedbacks.getOrElse(List())
 	}
 
+	def removePlayer(player: UserName): Try[Unit] = transacted(graph) { g =>
+		import scala.collection.JavaConversions._
+
+		val pl = self(player)
+		playersIdx.remove(pl)
+		pl.getRelationships(Direction.OUTGOING) foreach {_.delete()}
+		pl.delete()
+
+	}
+
 	def populate(g: GraphDatabaseService): Try[Node] = {
 		def createRoom(name: String, desc: String): Node = {
 			val room = g.createNode
@@ -167,6 +180,10 @@ private[muse] object WorldGraph {
 		import org.neo4j.graphdb._
 		import org.neo4j.cypher.javacompat.ExecutionEngine
 		import scala.collection.JavaConversions._
+
+		private def selfNode(player: UserName): String =
+			s"""start p=node:Players(name="$player") 
+				| return p""".stripMargin
 		
 		private def room(player: UserName): String = 
 			s"""start p=node:Players(name="$player") 
@@ -183,6 +200,9 @@ private[muse] object WorldGraph {
 			s"""start p=node:Players(name="$player") 
 				| match (p)-[:IS_IN]->(r)<-[:LEADS_TO]-(r2)<-[:IS_IN]-(other)
 				| return other""".stripMargin
+
+		def self(player: UserName)(implicit engine: ExecutionEngine): Node =
+			engine.execute(selfNode(player)).columnAs("p").next.asInstanceOf[Node]
 
 		def roomWith(player: UserName)(implicit engine: ExecutionEngine): Node =
 			engine.execute(room(player)).columnAs("r").next.asInstanceOf[Node]
