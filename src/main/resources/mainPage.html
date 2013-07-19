@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html>
   <head>
-      <title>Multi User Scala Enviroment</title>
+    <title>Multi User Scala Enviroment</title>
 
-      <!-- Bootstrap -->
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-      <script src="js/bootstrap.min.js"></script>
-      <!-- jQuery -->
-      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-
+    <!-- Bootstrap -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
   </head>
   <body>
     <div class="row">
@@ -25,22 +24,15 @@
         <hr/>
         <div id="message-area">
           <textarea class="span10" id="response-box" rows="8" disabled></textarea>
-              <div class="input-prepend input-append">
-                <span id="player-name" class="add-on">PlayerName</span>
-                <input class="span7" id="user-text" type="text"/>
-                <button id="send-msg" class="btn" type="button">send <i class="icon-envelope"></i></button>
-              </div>
-              <i id="help-icon" class="icon-question-sign pull-right" 
-                data-toggle="tooltip" 
-                title="Available commands are:
-                <ul><li><b>GO [exit]</b> to use the exit</li>
-                <li><b>ME [desc]</b> to describe how others see you</li>
-                <li><b>LOOK</b> to see what's around you</li>
-                <li>Whatever else you write is considered an action you  perform</li></ul>" data-html="true" data-placement="left">
-              </i>
+          <div class="input-prepend input-append">
+            <span id="player-name" class="add-on">PlayerName</span>
+            <input class="span7" id="user-text" type="text"/>
+            <button id="send-msg" class="btn" type="button">send <i class="icon-envelope"></i></button>
+          </div>
+           <i id="command-tooltip" class="icon-question-sign pull-right"></i>
         </div>
         <div id="alert-box" class="alert"></div>
-        <footer class="pull-right"><small>icons courtesy of <a href="http://glyphicons.com/">Glyphicons</a></small></footer>
+        <footer class="pull-right"><small>free icons courtesy of <a href="http://glyphicons.com/">Glyphicons</a></small></footer>
       </div>
     </div>
 
@@ -102,8 +94,23 @@
           showMessage("Great, your browser supports Web Socket!", "success");
         }
 
-        $("#help-icon").tooltip();
         $("#username").focus();
+
+        var commandHelp = 
+          "<ul><li><b>GO [exit]</b>: to use the exit<br></li>" +
+          "<li><b>ME [desc]</b>: to describe how others see you<br></li>" +
+          "<li><b>LOOK</b>: to see what\'s around you<br></li></ul>" +
+          "Whatever else you write is considered an action you perform";
+        
+        $("#command-tooltip").popover({
+          html: "true",
+          placement: "left",
+          title: "Available commands are",
+          trigger: "hover",
+          content: commandHelp
+        });
+        $("#command-tooltip").css("cursor", "pointer");
+
       });
 
       var socket;
