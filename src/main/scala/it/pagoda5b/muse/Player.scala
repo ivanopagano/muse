@@ -42,7 +42,7 @@ class PlayerActor extends Actor {
 		case Disconnect(user) => 
 			channelsRegistry -= user
 			context.actorFor("/user/engine") ! RemovePlayer(user)
-		case Message(user, frame) => 
+		case Message(user, frame) =>
 			val msg = frame.readText
 			// channelsRegistry.get(user) foreach { chan =>
 			// 	chan.write(new TextWebSocketFrame(s"[on the registered channel] I received $msg"))

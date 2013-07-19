@@ -9,6 +9,7 @@ import scala.util.Properties
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.Future
+import org.neo4j.graphdb._
 import Player.UserName
 import Phraser._
 
@@ -19,12 +20,14 @@ class WorldEngine extends Actor {
 	private val phraser = context.actorOf(Props[PhraserActor].withRouter(FromConfig()), "phraser")
 	private val playerActor = context.actorFor("/user/player")
 
+	private val world = WorldGraph()
+
 	def receive = {
 		case AddPlayer(player) =>
-			val updates = WorldGraph.addPlayer(player)
+			val updates = world.addPlayer(player)
 			updates.par foreach deliverResponse
 		case RemovePlayer(player) =>
-			WorldGraph.removePlayer(player)
+			world.removePlayer(player)
 		case _ => 
 			//default case
 	}
@@ -43,7 +46,7 @@ class WorldEngine extends Actor {
 	}
 
 	override def postStop() {
-		WorldGraph.stop()
+		world.stop()
 	}
 
 }
@@ -54,29 +57,17 @@ object WorldEngine {
 
 }
 
-private[muse] object WorldGraph {
-	import org.neo4j.graphdb._
+private[muse] class WorldGraph(graph: GraphDatabaseService) {
 	import org.neo4j.graphdb.index._
-	import org.neo4j.graphdb.factory._
 	import org.neo4j.cypher.javacompat.ExecutionEngine
 	import WorldGraph._
-	import WorldEngine._
 	import GraphSearch._
-	import com.typesafe.config._
+	import WorldEngine.UpdateEvents
 
-	val conf = ConfigFactory.load().getConfig("world-engine")
-
-
-	private val STORAGE_DIR = Properties.tmpDir + conf.getString("graph-dir")
-	private val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(STORAGE_DIR)
 	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
-
 	private implicit val queryEngine = new ExecutionEngine(graph)
 
 	private val startRoom: Long = populate(graph).map(_.getId).getOrElse(0L)
-
-	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
-	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
 
 	def stop(): Unit = graph.shutdown()
 
@@ -98,7 +89,7 @@ private[muse] object WorldGraph {
 			pl
 		}
 
-		//Tries prepare feedback messages for all the players
+		//Tries to prepare feedback messages for all the players
 		def updates(playerAdded: Node): Try[UpdateEvents] = transacted(graph) { g =>
 			//find the room
 			val room = roomWith(player)
@@ -130,6 +121,26 @@ private[muse] object WorldGraph {
 		pl.delete()
 
 	}
+
+
+}
+
+private[muse] object WorldGraph {
+	import org.neo4j.graphdb.factory._
+	import com.typesafe.config._
+
+	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
+	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
+
+	//companion constructor
+	def apply(): WorldGraph = {
+		val conf = ConfigFactory.load().getConfig("world-engine")
+
+		val storageDir = Properties.tmpDir + conf.getString("graph-dir")
+		val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(storageDir)
+		new WorldGraph(graph)
+	}
+
 
 	def populate(g: GraphDatabaseService): Try[Node] = {
 		def createRoom(name: String, desc: String): Node = {

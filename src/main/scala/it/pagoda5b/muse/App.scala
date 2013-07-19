@@ -45,12 +45,12 @@ object MuseServer extends App {
 			player ! Player.Message(playerName, frame)
 		}
 		case HttpRequest(request) => request match {
-			case GET(Path("/main")) 												=> staticRouter ! new StaticResourceRequest(request, "mainPage.html")
+			case GET(Path("/main"))	                        => staticRouter ! new StaticResourceRequest(request, "mainPage.html")
 			case GET(PathSegments("css" :: cssFile :: Nil)) => staticRouter ! new StaticResourceRequest(request, "css/" + cssFile)
-			case GET(PathSegments("js" :: jsFile :: Nil)) 	=> staticRouter ! new StaticResourceRequest(request, "js/" + jsFile)
+			case GET(PathSegments("js" :: jsFile :: Nil))   => staticRouter ! new StaticResourceRequest(request, "js/" + jsFile)
 			case GET(PathSegments("img" :: imgFile :: Nil)) => staticRouter ! new StaticResourceRequest(request, "img/" + imgFile)
-			case GET(Path("/favicon.ico")) 									=> request.response.write(HttpResponseStatus.NOT_FOUND)
-			case POST(Path("/disconnect")) 									=> 
+			case GET(Path("/favicon.ico"))                  => request.response.write(HttpResponseStatus.NOT_FOUND)
+			case POST(Path("/disconnect"))                  => 
 				player ! Player.Disconnect(request.request.content.toString)
 				request.response.write(HttpResponseStatus.OK)
 		}
