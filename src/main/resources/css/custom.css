@@ -1,12 +1,20 @@
 input, h1, h2, h3, h4, textarea, .popover {
   font-family: 'Economica', sans-serif;
 }
-  h1, h2, h3, h4 {
+
+.hero-unit {
   text-shadow: 2px 2px 6px rgba(150,150,150,0.5);
+  text-align: center;
 }
-  input, textarea, .popover {
+
+input, textarea, .popover-title {
   font-size: 18px !important;
 }
-  footer {
+
+.popover-content {
+  font-size: 16px !important; 
+}
+
+footer {
   font-family: 'The Girl Next Door', cursive;
 }
