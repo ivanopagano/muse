@@ -59,7 +59,7 @@ object Player {
 	case class DescribeMe(user: UserName, description: String) extends GameCommand(user)
 	case class LookAround(user: UserName) extends GameCommand(user)
 	case class GoToExit(user: UserName, exit: String) extends GameCommand(user)
-	case class DoSomething(user: UserName, action: String) extends GameCommand(user)
+	case class Perform(user: UserName, action: String) extends GameCommand(user)
 	case class Broadcast(message: String) extends GameCommand()
 
 	val describeMeSyntax = """^ME\s+(.+)""".r
@@ -73,7 +73,7 @@ object Player {
 			case describeMeSyntax(desc) => DescribeMe(user, desc)
 			case goToExitSyntax(exit) => GoToExit(user, exit)
 			case broadcastSyntax(message) => Broadcast(message)
-			case action => DoSomething(user, action)
+			case action => Perform(user, action)
 		}
 		
 

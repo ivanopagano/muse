@@ -39,8 +39,8 @@ class WorldEngine extends Actor {
 			pipe(update) to responseActor
 		case GoToExit(player, exit) =>
 			//TODO
-		case DoSomething(player, action) =>
-			val updates = world.doSomething(player, action)
+		case Perform(player, action) =>
+			val updates = world.perform(player, action)
 			pipe(updates) to responseActor
 		case _ => 
 			//default case
@@ -206,7 +206,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	}
 
-	def doSomething(player: UserName, action: String)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
+	def perform(player: UserName, action: String)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
 		def collapseNeighbours(l: List[(Relationship, Node)]): List[UserName] =
 			l map {
 				case (r, n) => nodeProperties(n)._1
