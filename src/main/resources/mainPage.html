@@ -140,7 +140,7 @@
         showMessage("connecting", "info");
 
         var name = $("#username").val();
-        socket = new WebSocket("ws://localhost:8888/websocket/" + name);
+        socket = new WebSocket("ws://" + window.location.host + "/websocket/" + name);
         socket.onmessage = function(event) {
           var current = responseBox.val();
           responseBox.val(current + event.data + "\n"); 
