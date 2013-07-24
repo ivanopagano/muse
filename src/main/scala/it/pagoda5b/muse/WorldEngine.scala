@@ -117,7 +117,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
 	private implicit val queryEngine = new ExecutionEngine(graph)
 
-	private val startRoom: Long = populate(graph).map(_.getId).getOrElse(0L)
+	private val startRoom: Long = WorldInstances.SimpleTestWorld.populate(graph).map(_.getId).getOrElse(0L)
 
 	def stop(): Unit = graph.shutdown()
 
@@ -246,7 +246,6 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 private[muse] object WorldGraph {
 	import org.neo4j.graphdb.factory._
-	import org.neo4j.tooling._
 	import com.typesafe.config._
 
 	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
@@ -261,48 +260,7 @@ private[muse] object WorldGraph {
 		new WorldGraph(graph)
 	}
 
-
-	def populate(g: GraphDatabaseService): Try[Node] = {
-		def clearGraph(): Unit = {
-			import scala.collection.JavaConversions._
-
-			val graphOps = (GlobalGraphOperations at g)
-			val (nodes, rels) = (graphOps.getAllNodes, graphOps.getAllRelationships)
-			rels foreach (_.delete)
-			nodes foreach (_.delete)
-		}
-
-		def createRoom(name: String, desc: String): Node = {
-			val room = g.createNode
-			room.setProperty("name", name)
-			room.setProperty("description", desc)
-			room
-		}
-
-		def joinRooms(r1: Node, r2: Node, id: String, desc: String): Relationship = {
-			val exit = r1.createRelationshipTo(r2, LEADS_TO)
-			exit.setProperty("id", id)
-			exit.setProperty("description", desc)
-			exit
-		}
-
-		transacted(g) { _ =>
-			clearGraph()
-			val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato da un paio di alberi e molti cespugli")
-			val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
-			val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
-
-			joinRooms(courtyard, hall, "il portone", "una massiccia porta che conduce all'edificio")
-			joinRooms(hall, courtyard, "l'uscita", "la porta verso l'esterno")
-
-			joinRooms(hall, terrace, "la scalinata", "una scalinata in ebano lucido")
-			joinRooms(terrace, hall, "l'accesso", "una porta per la scalinata al piano inferiore")
-		
-			courtyard
-		}
-	}
-
-	private def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
+	def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
 		val tx = g.beginTx()
 		val result = Try {
 			val r = op(g)
