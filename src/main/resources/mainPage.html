@@ -27,7 +27,7 @@
         </div>
         <hr/>
         <div id="message-area">
-          <textarea class="span10" id="response-box" rows="8" disabled></textarea>
+          <textarea class="span10" id="response-box" rows="20" disabled></textarea>
           <div class="input-prepend input-append">
             <span id="player-name" class="add-on">PlayerName</span>
             <input class="span7" id="user-text" type="text"/>
@@ -48,6 +48,9 @@
           showMessage("clicked connect", "info");
           wsconnect();
           $("#message-area").slideDown();
+          $("html, body").animate({
+            scrollTop: $("#conn-btn").offset().top
+          }, 1000);
           $('#user-text').focus();
           
           var connBtn = $(this);
