@@ -167,16 +167,17 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 		feedbacks.getOrElse(noUpdates)
 	}
 
-	def removePlayer(player: UserName)(implicit executor: ExecutionContext): Try[Unit] = transacted(graph) { g =>
-		import scala.collection.JavaConversions._
-
-		self(player) foreach { pl =>
-			playersIdx.remove(pl)
-			pl.getRelationships(Direction.OUTGOING) foreach {_.delete()}
-			pl.delete()
+	def removePlayer(player: UserName)(implicit executor: ExecutionContext): Unit = 
+		self(player) foreach { pl => 
+			transacted(graph) { g =>
+				import scala.collection.JavaConversions._
+				
+				playersIdx.remove(pl)
+				pl.getRelationships(Direction.OUTGOING) foreach {_.delete()}
+				pl.delete()
+			}
 		}
 
-	}
 
 	def changeDescription(player: UserName, description: String)(implicit executor: ExecutionContext): Future[GameEvent] =
 		for {
