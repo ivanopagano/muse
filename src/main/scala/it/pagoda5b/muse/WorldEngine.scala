@@ -31,11 +31,11 @@ class WorldEngine extends Actor {
 			world.removePlayer(player)
 		case DescribeMe(player, desc) =>
 			val event = world.changeDescription(player, desc)
-			val update = event.map(zip(_, player))
+			val update = event.map(eventFor(_, player))
 			pipe(update) to responseActor
 		case LookAround(player) =>
 			val desc = world.getRoomDescription(player)
-			val update = desc.map(zip(_, player))
+			val update = desc.map(eventFor(_, player))
 			pipe(update) to responseActor
 		case GoToExit(player, exit) =>
 			//TODO
@@ -98,7 +98,7 @@ object WorldEngine {
 	type UpdateEvents = List[(GameEvent, List[UserName])]
 
 	//utility to create an update event for a single player with less typing
-	def zip(event: GameEvent, player: UserName) = (event, List(player))
+	def eventFor(event: GameEvent, player: UserName) = (event, List(player))
 
 	//empty list of ui updates for failure cases
 	val noUpdates: Future[UpdateEvents] = Future.successful[UpdateEvents](Nil)
@@ -154,7 +154,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 				//prepare phrases for player and people in the same room
 				(playerPhrase, bystandersPhrase) = (DescribeRoom(room, exits, bystanders.map(_._2)), NewPlayer(nodeProperties(playerAdded)._2))
 				//pack messages for phraser
-			} yield zip(playerPhrase, player) :: (bystandersPhrase, bystanders.map(_._1)) :: Nil
+			} yield eventFor(playerPhrase, player) :: (bystandersPhrase, bystanders.map(_._1)) :: Nil
 
 		}
 
@@ -222,7 +222,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 				//find players in the nearby rooms
 				nextRoom <- nextDoorsTo(player)	
 				//describe action for actor
-				actorPhrase = zip(PlayerAction(player, action), player)
+				actorPhrase = eventFor(PlayerAction(player, action), player)
 				//action for people in the same room
 				sameRoomPhrase = (PlayerAction(nodeProperties(actor)._2, action),  sameRoom.map(nodeProperties(_)._1))
 				//noises heard by people in the room next door
@@ -281,11 +281,11 @@ private[muse] object WorldGraph {
 			val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
 			val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
 
-			joinRooms(courtyard, hall, "portone", "una massiccia porta che conduce all'edificio")
-			joinRooms(hall, courtyard, "uscita", "la porta verso l'esterno")
+			joinRooms(courtyard, hall, "il portone", "una massiccia porta che conduce all'edificio")
+			joinRooms(hall, courtyard, "l'uscita", "la porta verso l'esterno")
 
-			joinRooms(hall, terrace, "scalinata", "una scalinata in ebano lucido")
-			joinRooms(terrace, hall, "accesso", "una porta per la scalinata al piano inferiore")
+			joinRooms(hall, terrace, "la scalinata", "una scalinata in ebano lucido")
+			joinRooms(terrace, hall, "l'accesso", "una porta per la scalinata al piano inferiore")
 		
 			courtyard
 		}
@@ -337,6 +337,18 @@ private[muse] object WorldGraph {
 				| match (p)-[:IS_IN]->(r)<-[exit:LEADS_TO]-(r2)<-[:IS_IN]-(other)
 				| return exit, other""".stripMargin
 
+		private def nextDoorsThrough(player: UserName, id: ExitId): String =
+			s"""start p=node:Players(name="$player") 
+				| match (p)-[:IS_IN]->(r)<-[exit:LEADS_TO]-(r2)<-[:IS_IN]-(other)
+				| where exit.id = "$id"
+				| return exit, other""".stripMargin
+
+		private def exitWithIdFor(player: UserName, id: ExitId): String =
+			s"""start p=node:Players(name="$player") 
+				| match (p)-[:IS_IN]->(r)-[exit:LEADS_TO]->(r2)
+				| where exit.id = "$id"
+				| return exit""".stripMargin
+
 		//this is mostly for testing purposes
 		def allNodes(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[List[Node]] = Future {
 			engine.execute("start n=node(*) return n").columnAs("n").toList
@@ -361,6 +373,15 @@ private[muse] object WorldGraph {
 		def nextDoorsTo(player: UserName)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[List[(Relationship, Node)]] = Future {
 			val rows = engine.execute(nextDoors(player))
 			(rows map (r => (r("exit").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
+		}
+
+		def nextDoorsToThrough(player: UserName, id: ExitId)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[List[(Relationship, Node)]] = Future {
+			val rows = engine.execute(nextDoorsThrough(player, id))
+			(rows map (r => (r("exit").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
+		}
+
+		def exitFor(player: UserName, id: ExitId)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[Option[Relationship]] = Future {
+			engine.execute(exitWithIdFor(player, id)).columnAs("exit").toList.headOption
 		}
 
 		def roomExits(room: Node): List[Relationship] =
