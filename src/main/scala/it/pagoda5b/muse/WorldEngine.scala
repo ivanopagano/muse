@@ -38,7 +38,9 @@ class WorldEngine extends Actor {
 			val update = desc.map(eventFor(_, player))
 			pipe(update) to responseActor
 		case GoToExit(player, exit) =>
-			//TODO
+			val updates = world.goTo(player, exit)
+			pipe(updates) to responseActor
+			self ! LookAround(player)
 		case Perform(player, action) =>
 			val updates = world.perform(player, action)
 			pipe(updates) to responseActor
@@ -121,6 +123,13 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	def stop(): Unit = graph.shutdown()
 
+	def putIn(player: Node, room: Node): Unit = {
+		if (player.hasRelationship) {
+			player.getSingleRelationship(IS_IN, Direction.OUTGOING).delete()
+		}
+		player.createRelationshipTo(room, IS_IN)
+	}
+
 	def addPlayer(player: UserName)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
 
 		//Tries to update the world graph
@@ -132,9 +141,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 			playersIdx.add(pl, "name", player)
 
-			val start = g.getNodeById(startRoom)
-
-			pl.createRelationshipTo(start, IS_IN)
+			putIn(pl, g.getNodeById(startRoom))
 
 			pl
 		}
@@ -197,6 +204,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 				r <- roomWith(player)
 				//find players in the same room
 				bs <- sameRoomWith(player)
+				//extract readable properties
 				(room, exits, bystanders) = (nodeProperties(r), roomExits(r).map(exitProperties), bs.map(nodeProperties))
 				//fetch data for room description
 			} yield DescribeRoom(room, exits, bystanders.map(_._2))
@@ -240,6 +248,53 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 		actionSeen.getOrElse(noUpdates)
 
+	}
+
+	def goTo(player: UserName, id: ExitId)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
+
+		def cross(exit: Option[Relationship]): Future[UpdateEvents] = exit match {
+			case None => 
+				//wrong exit id?
+				Future.successful(eventFor(NoExit(id), player) :: Nil)
+			case Some(exitEdge) =>
+				for {
+					//get the moving player
+					pl <- self(player)
+					//find players in the same room
+					sameRoom <- sameRoomWith(player)
+					//find players in the room across the exit
+					nextRoom <- nextDoorsToThrough(player, id)
+					//extract readable properties
+					(playerDesc, exit, entrance, bystanders, neighbors) = (nodeProperties(pl)._2, exitProperties(exitEdge), exitProperties(nextRoom._1), sameRoom.map(nodeProperties), nextRoom._2.map(nodeProperties))
+					//prepare the response events
+					playerPhrase = eventFor(PlayerMoving(exit), player)
+					leavingPhrase = (PlayerLeaving(playerDesc, exit), bystanders.map(_._1))
+					comingPhrase = (PlayerIncoming(playerDesc, entrance), neighbors.map(_._1))
+				} yield playerPhrase :: leavingPhrase :: comingPhrase :: Nil
+			}
+
+		def updateGraph(): Future[Unit] = {
+			for {
+				pl <- self(player)
+				r <- roomWith(player)
+			} yield putIn(pl, r)
+		}
+
+		/*
+		 * Note: an expected behavior is that after the move, a player also receives a description 
+		 * of the room he's arrived into, just as if he issued a look command.
+		 * The message delivery system is expected to handle that
+		 */
+		val move: Try[Future[UpdateEvents]] = 
+			transacted(graph) { g =>
+				for {
+					e <- exitFor(player, id)
+					updates <- cross(e)
+					_ <- updateGraph()
+				} yield updates
+			}
+
+		move.getOrElse(noUpdates)
 	}
 
 }
@@ -308,9 +363,10 @@ private[muse] object WorldGraph {
 
 		private def nextDoorsThrough(player: UserName, id: ExitId): String =
 			s"""start p=node:Players(name="$player") 
-				| match (p)-[:IS_IN]->(r)<-[exit:LEADS_TO]-(r2)<-[:IS_IN]-(other)
+				| match (p)-[:IS_IN]->(r)-[exit:LEADS_TO]->(r2)<-[:IS_IN]-(other),
+				| (r)<-[entrance:LEADS_TO]-(r2)
 				| where exit.id = "$id"
-				| return exit, other""".stripMargin
+				| return entrance, other""".stripMargin
 
 		private def exitWithIdFor(player: UserName, id: ExitId): String =
 			s"""start p=node:Players(name="$player") 
@@ -344,9 +400,11 @@ private[muse] object WorldGraph {
 			(rows map (r => (r("exit").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
 		}
 
-		def nextDoorsToThrough(player: UserName, id: ExitId)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[List[(Relationship, Node)]] = Future {
+		def nextDoorsToThrough(player: UserName, id: ExitId)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[(Relationship, List[Node])] = Future {
 			val rows = engine.execute(nextDoorsThrough(player, id))
-			(rows map (r => (r("exit").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
+			val neighbour = (rows map (r => (r("entrance").asInstanceOf[Relationship], r("other").asInstanceOf[Node]))).toList
+			val (entrances, people) = neighbour.unzip
+			(entrances.head, people)
 		}
 
 		def exitFor(player: UserName, id: ExitId)(implicit engine: ExecutionEngine, executor: ExecutionContext): Future[Option[Relationship]] = Future {

@@ -13,14 +13,16 @@ class PhraserActor extends Actor {
 				 					|${describePeople(people)}${describeExits(exits)}""".stripMargin
 		case PlayerAction(player, action) => 
 			sender ! s"$player $action"
-		case PlayerComes(player, (exitId, exitDesc)) => 
+		case PlayerIncoming(player, (exitId, exitDesc)) => 
 			sender ! s"$player arriva da $exitDesc"
-		case PlayerLeaves(player, (exitId, exitDesc)) =>
-			sender ! (s"attraversi $exitDesc", s"$player esce da $exitDesc")
+		case PlayerLeaving(player, (exitId, exitDesc)) =>
+			sender ! s"$player esce da $exitDesc"
+		case PlayerMoving((exitId, exitDesc)) =>
+			sender ! s"attraversi $exitDesc"
 		case NoiseFrom((exitId, exitDesc)) =>
 			sender ! s"puoi sentire dei rumori provenire oltre $exitDesc"
 		case NoExit(exit) =>
-			sender ! s"non mi sembra che $exit sia una scelta percorribile"
+			sender ! s"non vedi $exit, dove vorresti passare?"
 		case PlayerDescribed =>
 			sender ! "ora gli altri ti guarderanno con occhi diversi?"
 	}
@@ -46,8 +48,9 @@ object Phraser {
 	case class NewPlayer(desc: String) extends GameEvent
 	case class DescribeRoom(room: (String, String), exits: List[(ExitId, String)], people: List[String]) extends GameEvent
 	case class PlayerAction(player: String, action: String) extends GameEvent
-	case class PlayerComes(player: String, exit: (ExitId, String)) extends GameEvent
-	case class PlayerLeaves(player: String, exit: (ExitId, String)) extends GameEvent
+	case class PlayerIncoming(player: String, exit: (ExitId, String)) extends GameEvent
+	case class PlayerLeaving(player: String, exit: (ExitId, String)) extends GameEvent
+	case class PlayerMoving(exit: (ExitId, String)) extends GameEvent
 	case class NoiseFrom(exit: (ExitId, String)) extends GameEvent
 	case class NoExit(exit: ExitId) extends GameEvent
 	case object PlayerDescribed extends GameEvent
