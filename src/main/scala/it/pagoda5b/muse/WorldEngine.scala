@@ -246,6 +246,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 private[muse] object WorldGraph {
 	import org.neo4j.graphdb.factory._
+	import org.neo4j.tooling._
 	import com.typesafe.config._
 
 	case object IS_IN extends RelationshipType {val name: String = "IS_IN"}
@@ -262,6 +263,15 @@ private[muse] object WorldGraph {
 
 
 	def populate(g: GraphDatabaseService): Try[Node] = {
+		def clearGraph(): Unit = {
+			import scala.collection.JavaConversions._
+
+			val graphOps = (GlobalGraphOperations at g)
+			val (nodes, rels) = (graphOps.getAllNodes, graphOps.getAllRelationships)
+			rels foreach (_.delete)
+			nodes foreach (_.delete)
+		}
+
 		def createRoom(name: String, desc: String): Node = {
 			val room = g.createNode
 			room.setProperty("name", name)
@@ -277,6 +287,7 @@ private[muse] object WorldGraph {
 		}
 
 		transacted(g) { _ =>
+			clearGraph()
 			val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato da un paio di alberi e molti cespugli")
 			val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
 			val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
