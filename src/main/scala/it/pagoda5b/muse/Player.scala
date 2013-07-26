@@ -61,15 +61,18 @@ object Player {
 	case class GoToExit(user: UserName, exit: String) extends GameCommand(user)
 	case class Perform(user: UserName, action: String) extends GameCommand(user)
 	case class Broadcast(message: String) extends GameCommand()
+	case object Report extends GameCommand()
 
 	val describeMeSyntax = """^ME\s+(.+)""".r
 	val lookAroundSyntax = "LOOK"
 	val goToExitSyntax = """^GO\s+(.+)""".r
-	val broadcastSyntax = """^BROADCAST\s+(.+)""".r
+	val broadcastSyntax = """^--BROADCAST\s+(.+)""".r
+	val reportSyntax = "--REPORT"
 
 	def parseCommand(user: UserName, cmd: String): GameCommand = 
 		cmd match {
 			case `lookAroundSyntax` => LookAround(user)
+			case `reportSyntax` => Report
 			case describeMeSyntax(desc) => DescribeMe(user, desc)
 			case goToExitSyntax(exit) => GoToExit(user, exit)
 			case broadcastSyntax(message) => Broadcast(message)
