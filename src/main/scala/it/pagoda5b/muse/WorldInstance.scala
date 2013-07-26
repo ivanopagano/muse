@@ -41,11 +41,15 @@ object WorldInstances {
         room
       }
 
-      def joinRooms(r1: Node, r2: Node, id: String, desc: String): Relationship = {
-        val exit = r1.createRelationshipTo(r2, LEADS_TO)
-        exit.setProperty("id", id)
-        exit.setProperty("description", desc)
-        exit
+      def joinRooms(r1: Node, r2: Node, direct: (String, String), reverse: (String, String)): (Relationship, Relationship) = {
+        val to = r1.createRelationshipTo(r2, LEADS_TO)
+        to.setProperty("name", direct._1)
+        to.setProperty("description", direct._2)
+        val from = r2.createRelationshipTo(r1, LEADS_TO)
+        from.setProperty("name", reverse._1)
+        from.setProperty("description", reverse._2)
+
+        (to, from)
       }
 
       transacted(g) { _ =>
@@ -54,11 +58,8 @@ object WorldInstances {
         val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
         val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
 
-        joinRooms(courtyard, hall, "il portone", "una massiccia porta che conduce all'edificio")
-        joinRooms(hall, courtyard, "l'uscita", "la porta verso l'esterno")
-
-        joinRooms(hall, terrace, "la scalinata", "una scalinata in ebano lucido")
-        joinRooms(terrace, hall, "l'accesso", "una porta per la scalinata al piano inferiore")
+        joinRooms(courtyard, hall, ("il portone", "una massiccia porta che conduce all'edificio"), ("l'uscita", "la porta verso l'esterno"))
+        joinRooms(hall, terrace, ("la scalinata", "una scalinata in ebano lucido"), ("l'accesso", "una porta per la scalinata al piano inferiore"))
       
         courtyard
       }
