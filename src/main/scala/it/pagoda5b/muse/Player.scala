@@ -63,7 +63,7 @@ object Player {
 	case class Broadcast(message: String) extends GameCommand()
 	case object Report extends GameCommand()
 
-	val describeMeSyntax = """^ME\s+(.+)""".r
+	val describeMeSyntax = """^IS\s+(.+)""".r
 	val lookAroundSyntax = "LOOK"
 	val goToExitSyntax = """^GO\s+(.+)""".r
 	val broadcastSyntax = """^--BROADCAST\s+(.+)""".r
