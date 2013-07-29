@@ -104,14 +104,14 @@
         $("#username").focus();
 
         var commandHelp = 
-          "<ul><li><b>GO [exit]</b>: to use the exit<br></li>" +
-          "<li><b>ME [desc]</b>: to describe how others see you<br></li>" +
-          "<li><b>LOOK</b>: to see what\'s around you<br></li></ul>" +
+          "<dl><dt>GO [exit]</dt><dd>to use the exit</dd>" +
+          "<dt>ME [desc]</dt><dd>to describe how others see you</dd>" +
+          "<dt>LOOK</dt><dd>to see what\'s around you</dd></dl>" +
           "Whatever else you write is considered an action you perform";
         
         $("#command-tooltip").popover({
           html: "true",
-          placement: "left",
+          placement: "top",
           title: "Available commands are",
           trigger: "hover",
           content: commandHelp
