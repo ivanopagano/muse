@@ -130,11 +130,9 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 			nodeProperties(in.getEndNode)._1
 		}
 		if (player.hasRelationship) {
-			println(s"$player was in $where")
 			player.getSingleRelationship(IS_IN, Direction.OUTGOING).delete()
 		}
 		player.createRelationshipTo(room, IS_IN)
-		println(s"$player is now in $where")
 	}
 
 	def addPlayer(player: UserName)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
