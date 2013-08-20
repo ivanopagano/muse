@@ -151,12 +151,10 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 			pl
 		}
 
-		//Tries to prepare feedback messages for all the players
-		def updates(playerAdded: Node): Try[Future[UpdateEvents]] = transacted(graph) { g =>
-
-			// following calls are made on a different thread, wrapped in future objects
-			// and then combined
+		//prepare feedback messages for the involved players
+		def updates(playerAdded: Node): Future[UpdateEvents] =
 			for {
+				//the following calls are made concurrently, wrapped in future objects and then combined
 				//find the room
 				r <- roomWith(player)
 				//find players in the same room
@@ -168,14 +166,9 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 				//pack messages for phraser
 			} yield eventFor(playerPhrase, player) :: (bystandersPhrase, bystanders.map(_._1)) :: Nil
 
-		}
-
-		//combine the tries
-		val feedbacks = for {
-			p <- added
-			phrases <- updates(p)
-		} yield phrases
-
+		//map on the eventual try result
+		val feedbacks = added.map{updates(_)}
+		//no feedback if there's been an error		
 		feedbacks.getOrElse(noUpdates)
 	}
 
@@ -202,22 +195,16 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 			update.getOrElse(NoOp)
 		}
 
-	def getRoomDescription(player: UserName)(implicit executor: ExecutionContext): Future[GameEvent] = {
-		val desc: Try[Future[GameEvent]] = transacted(graph) { g =>
-			for {
-				//find the room
-				r <- roomWith(player)
-				//find players in the same room
-				bs <- sameRoomWith(player)
-				//extract readable properties
-				(room, exits, bystanders) = (nodeProperties(r), roomExits(r).map(exitProperties), bs.map(nodeProperties))
-				//fetch data for room description
-			} yield DescribeRoom(room, exits, bystanders.map(_._2))
-		}
-
-		desc.getOrElse(Future.successful(NoOp))
-
-	}
+	def getRoomDescription(player: UserName)(implicit executor: ExecutionContext): Future[GameEvent] = 
+		for {
+			//find the room
+			r <- roomWith(player)
+			//find players in the same room
+			bs <- sameRoomWith(player)
+			//extract readable properties
+			(room, exits, bystanders) = (nodeProperties(r), roomExits(r).map(exitProperties), bs.map(nodeProperties))
+			//fetch data for room description
+		} yield DescribeRoom(room, exits, bystanders.map(_._2))
 
 	def perform(player: UserName, action: String)(implicit executor: ExecutionContext): Future[UpdateEvents] = {
 		def collapseNeighbours(l: List[(Relationship, Node)]): List[UserName] =
@@ -225,33 +212,27 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 				case (r, n) => nodeProperties(n)._1
 			}
 
-		val actionSeen: Try[Future[UpdateEvents]] = transacted(graph) { g =>
-
-			for {
-				//get the acting player
-				actor <- self(player)
-				//find players in the same room
-				sameRoom <- sameRoomWith(player)
-				//find players in the nearby rooms
-				nextRoom <- nextDoorsTo(player)	
-				//describe action for actor
-				actorPhrase = eventFor(PlayerAction(player, action), player)
-				//action for people in the same room
-				sameRoomPhrase = (PlayerAction(nodeProperties(actor)._2, action),  sameRoom.map(nodeProperties(_)._1))
-				//noises heard by people in the room next door
-				//1. group by room
-				nextRoomGroups: Map[(String, String), List[(Relationship, Node)]] = nextRoom groupBy {
-					case (exitRel, people) => exitProperties(exitRel)
-				}
-				//2. define response for each room group
-				nextRoomPhrase = nextRoomGroups.foldLeft(List.empty[(GameEvent, List[UserName])]) {
-					case (result, (exit, nr)) => (NoiseFrom(exit), collapseNeighbours(nr)) :: result
-				}
-			} yield actorPhrase :: sameRoomPhrase :: nextRoomPhrase
-
-		}
-
-		actionSeen.getOrElse(noUpdates)
+		for {
+			//get the acting player
+			actor <- self(player)
+			//find players in the same room
+			sameRoom <- sameRoomWith(player)
+			//find players in the nearby rooms
+			nextRoom <- nextDoorsTo(player)	
+			//describe action for actor
+			actorPhrase = eventFor(PlayerAction(player, action), player)
+			//action for people in the same room
+			sameRoomPhrase = (PlayerAction(nodeProperties(actor)._2, action),  sameRoom.map(nodeProperties(_)._1))
+			//noises heard by people in the room next door
+			//1. group by room
+			nextRoomGroups: Map[(String, String), List[(Relationship, Node)]] = nextRoom groupBy {
+				case (exitRel, people) => exitProperties(exitRel)
+			}
+			//2. define response for each room group
+			nextRoomPhrase = nextRoomGroups.foldLeft(List.empty[(GameEvent, List[UserName])]) {
+				case (result, (exit, nr)) => (NoiseFrom(exit), collapseNeighbours(nr)) :: result
+			}
+		} yield actorPhrase :: sameRoomPhrase :: nextRoomPhrase
 
 	}
 
@@ -324,7 +305,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 		move.getOrElse(noUpdates)
 	}
 
-	def report(implicit executor: ExecutionContext): Unit = transacted(graph) { g =>
+	def report(implicit executor: ExecutionContext): Unit = {
 		/****DEBUG SESSION****/
 		val (ns, rs) = (allNodes, allRelations)
 		ns onSuccess {
