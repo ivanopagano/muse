@@ -63,11 +63,7 @@ object Localizer {
   import com.typesafe.config._
 
   private def locale = props.getOrElse("it.pagoda5b.muse.locale", "it")
-	private lazy val config = {
-		val conf = ConfigFactory.load(s"phrase-replies-$locale")
-		conf.getConfig("phrase")
-		conf
-	}
+	private lazy val config = ConfigFactory.load(s"phrase-replies-$locale")
 
 	//generic message localizer
 	def localize(message: String, args: String*): String = {
