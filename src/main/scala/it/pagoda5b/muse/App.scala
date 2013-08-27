@@ -13,7 +13,17 @@ object MuseServer extends App {
 
 	case class ShutDownSequence(reason: String)
 
+  class ShutDownActor extends Actor {
+  	def receive = {
+  		case ShutDownSequence(message) => 
+  			println(s"${RED}${BLINK}Server shutdown sequence started.\n$message${RESET}")
+  			context.system.shutdown()
+  	}
+  }
+
 	val actorSystem = ActorSystem("muse-system")
+
+ 	val shutdown = actorSystem.actorOf(Props[ShutDownActor], "shutdown")
 
 	val broadcaster = actorSystem.actorOf(Props[WebSocketBroadcaster], "broadcaster")
 	
@@ -63,24 +73,12 @@ object MuseServer extends App {
 
   server.start()
 
-  class ShutDownActor extends Actor {
-  	def receive = {
-  		case ShutDownSequence(message) => 
-  			println(s"${RED}${BLINK}Server shutdown sequence started. $message${RESET}")
-  			context.system.shutdown()
-  	}
-  }
-
   actorSystem.registerOnTermination {
   	println("actor system is down")
   	server.stop()
   }
 
- 	val shutdown = actorSystem.actorOf(Props[ShutDownActor], "shutdown")
-
-
   println(s"Server ${GREEN}online ${RESET}on localhost at port 8888.\nPress ${RED}enter to stop${RESET}")
-
 
   readLine()
 

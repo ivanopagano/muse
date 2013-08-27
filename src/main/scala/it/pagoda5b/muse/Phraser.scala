@@ -68,8 +68,6 @@ object Localizer {
 	//generic message localizer
 	def localize(message: String, args: String*): String = {
 		val template = config.getString(message)
-		println(s"found template for $message: $template")
-		println(s"template arguments: $args")
 		if (args.isEmpty) 
 			template
 		else
