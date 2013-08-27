@@ -24,7 +24,16 @@ object WorldInstances {
   }
 
   object SimpleTestWorld extends Instance {
+    import com.typesafe.config._
+    import scala.sys.props
+
+    private def locale = props.getOrElse("it.pagoda5b.muse.locale", "it")
+    private lazy val conf = ConfigFactory.load("worlds/simple-test").getConfig(locale)
+
+    def read(param: String) = conf.getString(param)
+
     def populate(g: GraphDatabaseService): Try[Node] = {
+    
       def clearGraph(): Unit = {
         import scala.collection.JavaConversions._
 
@@ -36,33 +45,45 @@ object WorldInstances {
 
       def createRoom(name: String, desc: String): Node = {
         val room = g.createNode
-        room.setProperty("name", name)
-        room.setProperty("description", desc)
+        room.setProperty("name", read(name))
+        room.setProperty("description", read(desc))
         room
       }
 
       def joinRooms(r1: Node, r2: Node, direct: (String, String), reverse: (String, String)): (Relationship, Relationship) = {
+        val (directName, directDesc) = direct
+        val (reverseName, reverseDesc) = reverse
+
         val to = r1.createRelationshipTo(r2, LEADS_TO)
-        to.setProperty("name", direct._1)
-        to.setProperty("description", direct._2)
+        to.setProperty("name", read(directName))
+        to.setProperty("description", read(directDesc))
         val from = r2.createRelationshipTo(r1, LEADS_TO)
-        from.setProperty("name", reverse._1)
-        from.setProperty("description", reverse._2)
+        from.setProperty("name", (reverseName))
+        from.setProperty("description", (reverseDesc))
 
         (to, from)
       }
 
-      transacted(g) { _ =>
+      val cleaning = transacted(g) { _ =>
         clearGraph()
-        val courtyard = createRoom("cortile", "Un muro circonda questo piccolo spazio verde, costellato da un paio di alberi e molti cespugli")
-        val hall = createRoom("ingresso", "Una stanza confortevole e spaziosa, illuminata da un lampadario dall'aspetto antico e arredata decorosamente")
-        val terrace = createRoom("terrazza", "Da questa terrazza e' possibile intravedere in lontananza la linea del mare. Il pavimento e' composto di ceramiche dallo stile antico, ma niente di piu'")
+      }
 
-        joinRooms(courtyard, hall, ("il portone", "una massiccia porta che conduce all'edificio"), ("l'uscita", "la porta verso l'esterno"))
-        joinRooms(hall, terrace, ("la scalinata", "una scalinata in ebano lucido"), ("l'accesso", "una porta per la scalinata al piano inferiore"))
+      val startRoom = transacted(g) { _ =>
+        val courtyard = createRoom("room1-name", "room1-desc")
+        val hall = createRoom("room2-name", "room2-desc")
+        val terrace = createRoom("room3-name", "room3-desc")
+
+        joinRooms(courtyard, hall, ("r1r2-name" -> "r1r2-desc"), ("r2r1-name" -> "r2r1-desc"))
+        joinRooms(hall, terrace, ("r2r3-name" -> "r2r3-desc"), ("r3r2-name" -> "r3r2-desc"))
       
         courtyard
       }
+
+      for {
+        _ <- cleaning
+        start <- startRoom
+      } yield start
+
     }
   }
 

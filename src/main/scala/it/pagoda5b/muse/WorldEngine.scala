@@ -21,7 +21,13 @@ class WorldEngine extends Actor {
 	private val responseActor = context.actorOf(Props[ResponseDeliveryActor], "responder")
 	implicit val graphExecutor = context.system.dispatchers.lookup("graph-access-dispatcher")
 
-	private val world = WorldGraph()
+	private val worldInitCheck: Try[WorldGraph] = WorldGraph()
+	private lazy val world = worldInitCheck.get
+
+	worldInitCheck match {
+		case Failure(e) => context.actorFor("/user/shutdown") ! MuseServer.ShutDownSequence(s"Failed to create world instance: ${e.getMessage}")
+		case Success(_) => println("world is up and turning")
+	}
 
 	def receive = {
 		case AddPlayer(player) =>
@@ -54,7 +60,7 @@ class WorldEngine extends Actor {
 	}
 
 	override def postStop() {
-		world.stop()
+		worldInitCheck.foreach(_.stop())
 	}
 
 }
@@ -120,7 +126,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
 	private implicit val queryEngine = new ExecutionEngine(graph)
 
-	private val startRoom: Long = WorldInstances.SimpleTestWorld.populate(graph).map(_.getId).getOrElse(0L)
+	private val startRoom: Long = WorldInstances.SimpleTestWorld.populate(graph).get.getId
 
 	def stop(): Unit = graph.shutdown()
 
@@ -343,12 +349,16 @@ private[muse] object WorldGraph {
 	case object LEADS_TO extends RelationshipType {val name: String = "LEADS_TO"}
 
 	//companion constructor
-	def apply(): WorldGraph = {
+	def apply(): Try[WorldGraph] = {
 		val conf = ConfigFactory.load().getConfig("world-engine")
 
 		val storageDir = Properties.tmpDir + conf.getString("graph-dir")
 		val graph: GraphDatabaseService = (new GraphDatabaseFactory).newEmbeddedDatabase(storageDir)
-		new WorldGraph(graph)
+		Try(new WorldGraph(graph)).recoverWith {
+			case error =>
+				graph.shutdown()
+				Failure(error)
+			}
 	}
 
 	def transacted[A](g: GraphDatabaseService)(op: GraphDatabaseService => A): Try[A] =  {
