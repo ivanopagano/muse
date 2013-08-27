@@ -117,10 +117,12 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 	import GraphSearch._
 	import WorldEngine._
 
+	private val NO_ROOM = -1L
+
 	private val playersIdx: Index[Node] = graph.index.forNodes("Players")
 	private implicit val queryEngine = new ExecutionEngine(graph)
 
-	private val startRoom: Long = WorldInstances.SimpleTestWorld.populate(graph).map(_.getId).getOrElse(0L)
+	private val startRoom: Long = WorldInstances.SimpleTestWorld.populate(graph).map(_.getId).getOrElse(NO_ROOM)
 
 	def stop(): Unit = graph.shutdown()
 
@@ -307,6 +309,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 	def report(implicit executor: ExecutionContext): Unit = {
 		/****DEBUG SESSION****/
+		if (startRoom == NO_ROOM) println("WARN: It looks like the world was not properly initialized...")
 		val (ns, rs) = (allNodes, allRelations)
 		ns onSuccess {
 			case n: List[Node] => 
