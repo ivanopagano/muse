@@ -2,7 +2,7 @@ scalaVersion := "2.10.2"
 
 name := "muse"
 
-version := "1.0-M1"
+version := "1.0-M2"
 
 libraryDependencies ++= Seq(
 	"org.mashupbots.socko" %% "socko-webserver" % "0.3.0",
