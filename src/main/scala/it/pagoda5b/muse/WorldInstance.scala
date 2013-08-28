@@ -58,8 +58,8 @@ object WorldInstances {
         to.setProperty("name", read(directName))
         to.setProperty("description", read(directDesc))
         val from = r2.createRelationshipTo(r1, LEADS_TO)
-        from.setProperty("name", (reverseName))
-        from.setProperty("description", (reverseDesc))
+        from.setProperty("name", read(reverseName))
+        from.setProperty("description", read(reverseDesc))
 
         (to, from)
       }
