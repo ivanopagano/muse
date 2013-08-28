@@ -8,6 +8,7 @@ import org.mashupbots.socko.events._
 import akka.actor._
 import akka.routing.FromConfig
 import Console._
+import scala.sys.props
 
 object MuseServer extends App {
 
@@ -69,7 +70,9 @@ object MuseServer extends App {
 
 	}
 
-	val server = new WebServer(WebServerConfig(), routes, actorSystem)
+	val port: Int = props.get("app.port").map(_.toInt).getOrElse(8888)
+
+	val server = new WebServer(WebServerConfig(port = port), routes, actorSystem)
 
   server.start()
 
@@ -78,7 +81,7 @@ object MuseServer extends App {
   	server.stop()
   }
 
-  println(s"Server ${GREEN}online ${RESET}on localhost at port 8888.\nPress ${RED}enter to stop${RESET}")
+  println(s"Server ${GREEN}online ${RESET}on localhost at port $port.\nPress ${RED}enter to stop${RESET}")
 
   readLine()
 
