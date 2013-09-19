@@ -23,17 +23,23 @@ object WorldInstances {
     def populate(g: GraphDatabaseService): Try[Node]
   }
 
+  /*
+   * a modest test world made up with 3 rooms
+   */
   object SimpleTestWorld extends Instance {
     import com.typesafe.config._
     import scala.sys.props
 
+    //localize the locations' descriptions
     private def locale = props.getOrElse("it.pagoda5b.muse.locale", "it")
     private lazy val conf = ConfigFactory.load("worlds/simple-test").getConfig(locale)
 
     def read(param: String) = conf.getString(param)
 
+    //build the graph representing this environment
     def populate(g: GraphDatabaseService): Try[Node] = {
-    
+
+      //remove all nodes and relationships between   
       def clearGraph(): Unit = {
         import scala.collection.JavaConversions._
 
@@ -42,7 +48,8 @@ object WorldInstances {
         rels foreach (_.delete)
         nodes foreach (_.delete)
       }
-
+      
+      //local method to create a room node
       def createRoom(name: String, desc: String): Node = {
         val room = g.createNode
         room.setProperty("name", read(name))
@@ -50,6 +57,11 @@ object WorldInstances {
         room
       }
 
+      /*
+       * local method to connect room nodes,
+       * @direct is the (name, description) of the exit from r1 to r2
+       * @reverse the same as direct but from r2 to r1
+       */
       def joinRooms(r1: Node, r2: Node, direct: (String, String), reverse: (String, String)): (Relationship, Relationship) = {
         val (directName, directDesc) = direct
         val (reverseName, reverseDesc) = reverse
@@ -64,10 +76,12 @@ object WorldInstances {
         (to, from)
       }
 
+      //clean the graph in transaction
       val cleaning = transacted(g) { _ =>
         clearGraph()
       }
 
+      //define the world nodes and return the starting location for new players
       val startRoom = transacted(g) { _ =>
         val courtyard = createRoom("room1-name", "room1-desc")
         val hall = createRoom("room2-name", "room2-desc")
@@ -79,6 +93,7 @@ object WorldInstances {
         courtyard
       }
 
+      //returns the starting node only if both transactions executed succesfully, otherwise a failure 
       for {
         _ <- cleaning
         start <- startRoom

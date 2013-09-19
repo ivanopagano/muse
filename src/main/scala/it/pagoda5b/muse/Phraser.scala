@@ -2,6 +2,10 @@ package it.pagoda5b.muse
 
 import akka.actor._
 
+/*
+ * this actor translates event objects with parameters into a readable 
+ * text message that can be sent to the ui
+ */
 class PhraserActor extends Actor {
 	import Phraser._
 	import Localizer._
@@ -40,7 +44,8 @@ class PhraserActor extends Actor {
 }
 
 object Phraser {
-
+  
+  //a useful type alias to enhance readability
 	type ExitName = String
 
 	//events corresponding to sentences needed by the game
@@ -58,6 +63,11 @@ object Phraser {
 
 }
 
+/*
+ * This singleton takes care to localize all available messages using resource bundles.
+ * The language selection is made by a lookup to a specific environment property: it.pagoda5b.muse.locale
+ * The default language is italian
+ */
 object Localizer {
   import scala.sys.props
   import com.typesafe.config._
