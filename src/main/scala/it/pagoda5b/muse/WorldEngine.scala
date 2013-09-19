@@ -148,7 +148,7 @@ private[muse] class WorldGraph(graph: GraphDatabaseService) {
 
 			val pl = g.createNode
 			pl.setProperty("name", player)
-			pl.setProperty("description", "uno sconosciuto")
+			pl.setProperty("description", Localizer.defaultPlayerDescription)
 
 			playersIdx.add(pl, "name", player)
 

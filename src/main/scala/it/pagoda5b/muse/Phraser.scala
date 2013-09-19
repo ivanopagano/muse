@@ -73,6 +73,9 @@ object Localizer {
 		else
 			template.format(args: _*)
 	}
+
+	//default description for logged-in player's avatar
+	def defaultPlayerDescription = localize("default.playerDescription")
 	
 	//specific phraser messages
 	def newPlayerMessage(desc: String) = localize("phrase.newPlayer", desc)
