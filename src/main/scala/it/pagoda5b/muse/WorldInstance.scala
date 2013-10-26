@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.Try._
 
 /**
- * This module contains individual world maps, 
+ * This module contains individual world maps,
  * which are actually factories to populate the graph.
  */
 object WorldInstances {
@@ -16,10 +16,10 @@ object WorldInstances {
    * common interface for the world-building instances
    */
   trait Instance {
-   /**
-    * Creates the locations and in-between connections for a virtual world.
-    * If all goes well the starting location for new players is returned.
-    */
+    /**
+     * Creates the locations and in-between connections for a virtual world.
+     * If all goes well the starting location for new players is returned.
+     */
     def populate(g: GraphDatabaseService): Try[Node]
   }
 
@@ -48,7 +48,7 @@ object WorldInstances {
         rels foreach (_.delete)
         nodes foreach (_.delete)
       }
-      
+
       //local method to create a room node
       def createRoom(name: String, desc: String): Node = {
         val room = g.createNode
@@ -89,7 +89,7 @@ object WorldInstances {
 
         joinRooms(courtyard, hall, ("r1r2-name" -> "r1r2-desc"), ("r2r1-name" -> "r2r1-desc"))
         joinRooms(hall, terrace, ("r2r3-name" -> "r2r3-desc"), ("r3r2-name" -> "r3r2-desc"))
-      
+
         courtyard
       }
 
