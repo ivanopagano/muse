@@ -72,7 +72,7 @@ object MuseServer extends App {
 
 	val port: Int = props.get("app.port").map(_.toInt).getOrElse(8888)
 
-	val server = new WebServer(WebServerConfig(port = port), routes, actorSystem)
+	val server = new WebServer(WebServerConfig(hostname = "0.0.0.0", port = port), routes, actorSystem)
 
   server.start()
 
