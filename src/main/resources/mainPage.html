@@ -137,7 +137,7 @@
 
       function wsconnect() {
 
-        showMessage("connecting", "info");
+        showMessage("connecting to " + window.location.host, "info");
 
         var name = $("#username").val();
         socket = new WebSocket("ws://" + window.location.host + "/websocket/" + name);
@@ -149,7 +149,7 @@
           showMessage(name + ", you're connected", "success");
         };
         socket.onclose = function(event) {
-          $.post("http://localhost:8888/disconnect", name)
+          $.post("http://" + window.location.host + "/disconnect", name)
             .done(function() {showMessage("connection closed");})
             .fail(function() {showMessage("connection closed, but failed to clean up", "error");});
         };
