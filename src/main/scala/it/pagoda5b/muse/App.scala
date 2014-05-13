@@ -17,7 +17,7 @@ object MuseServer extends App {
   class ShutDownActor extends Actor {
   	def receive = {
   		case ShutDownSequence(message) => 
-  			println(s"${RED}${BLINK}Server shutdown sequence started.\n$message${RESET}")
+  			println(s"Server shutdown sequence started.\n$message")
   			context.system.shutdown()
   	}
   }
@@ -81,10 +81,14 @@ object MuseServer extends App {
   	server.stop()
   }
 
-  println(s"Server ${GREEN}online ${RESET}on localhost at port $port.\nPress ${RED}enter to stop${RESET}")
+  println(s"Server online at port $port.")
+
 
   /*
    * only when running from CL
+   *
+   * println("Press enter to stop")
+   *
    * readLine()
    *
    * shutdown ! ShutDownSequence("A request from the command-line stopped the system")
