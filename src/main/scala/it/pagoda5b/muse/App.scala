@@ -83,8 +83,15 @@ object MuseServer extends App {
 
   println(s"Server ${GREEN}online ${RESET}on localhost at port $port.\nPress ${RED}enter to stop${RESET}")
 
-  readLine()
+  /*
+   * only when running from CL
+   * readLine()
+   *
+   * shutdown ! ShutDownSequence("A request from the command-line stopped the system")
+   */
 
-  shutdown ! ShutDownSequence("A request from the command-line stopped the system")
+  Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run { shutdown ! ShutDownSequence("A request from the command-line stopped the system") }
+  })
 
 }
